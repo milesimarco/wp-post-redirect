@@ -5,8 +5,8 @@ Tags: seo, redirect, redirection, url, change, external link
 Requires at least: 3.8
 Tested up to: 6.9
 Requires PHP: 5.6
-Version: 2.0.0
-Stable tag: 2.0.0
+Version: 2.0.1
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
