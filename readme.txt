@@ -5,8 +5,8 @@ Tags: seo, redirect, redirection, url, change, external link
 Requires at least: 3.8
 Tested up to: 6.9
 Requires PHP: 5.6
-Version: 2.1.0
-Stable tag: 2.1.0
+Version: 2.2
+Stable tag: 2.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,7 +53,7 @@ By default, redirection is 301 (Moved Permanently), which is best for SEO. You c
 
 == Changelog ==
 
-= 2.1.0 - 2026-02-02 =
+= 2.2 - 2026-02-02 =
 * [New] Support for Internal Content Redirection (search posts/pages).
 * [New] Added options for "Open in new tab" and `rel="nofollow"`.
 * [New] Support for selectable HTTP Status Codes (301, 307, 308).
