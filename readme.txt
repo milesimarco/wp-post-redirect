@@ -5,8 +5,8 @@ Tags: seo, redirect, redirection, url, change, external link
 Requires at least: 3.8
 Tested up to: 6.9
 Requires PHP: 5.6
-Version: 2.0.0
-Stable tag: 2.0.0
+Version: 3.0
+Stable tag: 3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -44,9 +44,9 @@ Redirects are handled with a 301 status for SEO best practices.
 
 == Screenshots ==
 
-1. The "Redirect URL" metabox on the post edit screen.
-2. Highlighted posts in the admin post list.
-3. Options dashboard for managing all redirections.
+1. Easily set the target URL in the Post Editor.
+2. Quickly identify redirected posts in your list.
+3. Manage and monitor all your links in one place.
 
 == Changelog ==
 
