@@ -12,9 +12,11 @@ class WP_Post_Redirect_Admin {
     public function __construct( $parent ) {
         $this->parent = $parent;
 
-        // Admin columns
-        add_filter( 'manage_post_posts_columns', [ $this, 'add_redirect_column' ] );
-        add_action( 'manage_post_posts_custom_column', [ $this, 'render_redirect_column' ], 10, 2 );
+        // Admin columns (for every enabled post type)
+        add_action( 'admin_init', [ $this, 'register_redirect_columns' ] );
+
+        // Admin assets
+        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
         // Metabox
         add_action( 'add_meta_boxes', [ $this, 'add_redirect_metabox_to_cpts' ] );
@@ -34,17 +36,52 @@ class WP_Post_Redirect_Admin {
         add_action( 'wp_ajax_wppr_search_posts', [ $this, 'ajax_search_posts' ] );
     }
 
+    public function register_redirect_columns() {
+        foreach ( (array) get_option( WP_Post_Redirect::OPTION_CPTS, [ 'post' ] ) as $type ) {
+            add_filter( "manage_{$type}_posts_columns", [ $this, 'add_redirect_column' ] );
+            add_action( "manage_{$type}_posts_custom_column", [ $this, 'render_redirect_column' ], 10, 2 );
+        }
+    }
+
+    public function enqueue_assets( $hook_suffix ) {
+        $screen = get_current_screen();
+        $enabled = (array) get_option( WP_Post_Redirect::OPTION_CPTS, [ 'post' ] );
+        $is_editor = in_array( $hook_suffix, [ 'post.php', 'post-new.php' ], true ) && $screen && in_array( $screen->post_type, $enabled, true );
+        $is_list = $hook_suffix === 'edit.php' && $screen && in_array( $screen->post_type, $enabled, true );
+        $is_settings = $hook_suffix === 'settings_page_' . WP_Post_Redirect::OPTION_PAGE_SLUG;
+
+        if ( ! $is_editor && ! $is_list && ! $is_settings ) {
+            return;
+        }
+
+        $url = plugin_dir_url( WP_Post_Redirect::PLUGIN_FILE ) . 'assets/';
+        wp_enqueue_style( 'wppr-admin', $url . 'admin.css', [], WP_Post_Redirect::VERSION );
+
+        if ( $is_editor ) {
+            wp_enqueue_script( 'wppr-admin', $url . 'admin.js', [ 'jquery' ], WP_Post_Redirect::VERSION, true );
+            $post = get_post();
+            wp_localize_script( 'wppr-admin', 'wpprAdmin', [
+                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'nonce'   => wp_create_nonce( 'wppr_metabox_nonce' ),
+                'postId'  => $post ? $post->ID : 0,
+            ] );
+        }
+    }
+
     public function ajax_search_posts() {
         check_ajax_referer( 'wppr_metabox_nonce', 'nonce' );
         if ( ! current_user_can( 'edit_posts' ) ) {
             wp_send_json_error( null, 403 );
         }
         $query = isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : '';
-        
+        // The post being edited cannot be its own redirect target
+        $exclude = isset( $_GET['exclude'] ) ? absint( $_GET['exclude'] ) : 0;
+
         $posts = get_posts( [
             'post_type' => get_post_types( [ 'public' => true ] ),
             's' => $query,
             'posts_per_page' => 10,
+            'post__not_in' => $exclude ? [ $exclude ] : [],
         ] );
 
         $results = [];
@@ -105,8 +142,8 @@ class WP_Post_Redirect_Admin {
 
                 $display_url = is_numeric( $raw_value ) ? '🏠 ' . get_the_title( $raw_value ) : $redirect;
 
-                echo '<a href="' . esc_url( $redirect ) . '"' . $target . $rel_attr . ' title="' . esc_attr( $redirect ) . '">' . esc_html( $display_url ) . '</a>';
-                echo '<style>#post-' . $post_id . ' { background: rgb(255 255 0 / 30%); }</style>';
+                // .wppr-has-redirect highlights the row (see assets/admin.css)
+                echo '<a class="wppr-has-redirect" href="' . esc_url( $redirect ) . '"' . $target . $rel_attr . ' title="' . esc_attr( $redirect ) . '">' . esc_html( $display_url ) . '</a>';
             } else {
                 echo '-';
             }
@@ -217,92 +254,6 @@ class WP_Post_Redirect_Admin {
                 <?php _e( 'Enter the URL or select a content where you want to redirect. Options affect menu links as well.', 'wp-post-redirect' ); ?>
             </p>
         </div>
-        <script>
-        (function($){
-            $(document).ready(function(){
-                const $typeSelect = $('#wppr-redirect-type');
-                const $externalWrp = $('#wppr-external-wrapper');
-                const $internalWrp = $('#wppr-internal-wrapper');
-                const $searchInput = $('#wppr-search-input');
-                const $resultsBox = $('#wppr-search-results');
-                const $internalId = $('#wppr-internal-id');
-                const $selectedWrp = $('#wppr-selected-content');
-                const $selectedTitle = $('#wppr-selected-title');
-                const $externalUrl = $('#wppr-redirect-url');
-
-                $typeSelect.on('change', function(){
-                    if($(this).val() === 'external'){
-                        $externalWrp.show();
-                        $internalWrp.hide();
-                    } else {
-                        $externalWrp.hide();
-                        $internalWrp.show();
-                    }
-                });
-
-                let timer;
-                $searchInput.on('input', function(){
-                    clearTimeout(timer);
-                    const q = $(this).val();
-                    if(q.length < 3) {
-                        $resultsBox.hide();
-                        return;
-                    }
-
-                    timer = setTimeout(function(){
-                        $.ajax({
-                            url: ajaxurl,
-                            data: {
-                                action: 'wppr_search_posts',
-                                q: q,
-                                nonce: '<?php echo wp_create_nonce( "wppr_metabox_nonce" ); ?>'
-                            },
-                            success: function(res){
-                                if(res.success && res.data.length > 0){
-                                    $resultsBox.empty().show();
-                                    res.data.forEach(function(item){
-                                        $('<div class="wppr-search-item" style="padding:8px;cursor:pointer;border-bottom:1px solid #eee;"></div>')
-                                            .attr('data-id', item.id)
-                                            .attr('data-title', item.title)
-                                            .text(item.title)
-                                            .appendTo($resultsBox);
-                                    });
-                                }
-                            }
-                        });
-                    }, 300);
-                });
-
-                $(document).on('click', '.wppr-search-item', function(){
-                    const id = $(this).data('id');
-                    const title = $(this).data('title');
-                    $internalId.val(id);
-                    $selectedTitle.text(title);
-                    $selectedWrp.show();
-                    $resultsBox.hide();
-                    $searchInput.val('');
-                });
-
-                $('#wppr-clear-internal').on('click', function(e){
-                    e.preventDefault();
-                    $internalId.val('');
-                    $selectedWrp.hide();
-                });
-                
-                $(document).on('click', function(e){
-                    if(!$(e.target).closest('#wppr-internal-wrapper').length) $resultsBox.hide();
-                });
-            });
-        })(jQuery);
-        </script>
-        <style>
-            .wppr-search-item:hover { background: #f0f0f0; }
-            .edit-post-meta-boxes-area #wpr_redirect_url .inside { padding-bottom: 10px; }
-            .wppr-metabox-content input[type="url"]:focus, .wppr-metabox-content input[type="text"]:focus {
-                border-color: #2271b1;
-                box-shadow: 0 0 0 1px #2271b1;
-            }
-        </style>
         <?php
     }
 
@@ -366,7 +317,7 @@ class WP_Post_Redirect_Admin {
     public function show_redirect_in_permalink( $return, $id, $new_title, $new_slug ) {
         $redirect = $this->parent->get_redirect_url( $id );
         if ( $redirect ) {
-            $return = "<strong>" . __( "Redirect:", 'wp-post-redirect' ) . "</strong> " . esc_html( $redirect ) . "<style>#titlediv {margin-bottom: 30px;}</style><br/>" . $return;
+            $return = '<strong class="wppr-permalink-redirect">' . __( "Redirect:", 'wp-post-redirect' ) . "</strong> " . esc_html( $redirect ) . "<br/>" . $return;
         }
         return $return;
     }
@@ -523,18 +474,6 @@ class WP_Post_Redirect_Admin {
         $render_table( $active, __( 'Active Redirections', 'wp-post-redirect' ) );
         // Inactive redirects table
         $render_table( $inactive, __( 'Inactive Redirections (CPT disabled)', 'wp-post-redirect' ) );
-
-        echo '<style>
-            .wppr-table th, .wppr-table td { padding: 12px 10px; vertical-align: middle; }
-            .wppr-table tr:nth-child(even) { background: #f9f9f9; }
-            .wppr-table th { background: #f1f1f1; font-weight: 600; }
-            .wppr-table a { color: #2271b1; text-decoration: none; font-weight: 500; }
-            .wppr-table a:hover { color: #135e96; text-decoration: underline; }
-            .tag-post-type { background: #eee; padding: 2px 6px; border-radius: 3px; font-size: 11px; text-transform: uppercase; color: #666; }
-            .dest-link { display: block; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .dashicons-randomize { font-size: 32px; vertical-align: middle; }
-            .wppr-table .dashicons { color: #666; }
-        </style>';
 
         echo '</div>';
     }

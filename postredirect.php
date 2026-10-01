@@ -7,9 +7,9 @@ Requires at least: 5.0
 Requires PHP: 7.4
 Text Domain: wp-post-redirect
 Author: Marco Milesi
-Author Email: milesimarco@outlook.com
-Author URI: http://www.marcomilesi.com
+Author URI: https://www.marcomilesi.com
 License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -18,6 +18,7 @@ if ( ! class_exists( 'WP_Post_Redirect' ) ) :
 
 class WP_Post_Redirect {
 
+    const VERSION = '2.2.1'; // Keep in sync with the plugin header (used to version admin assets)
     const PLUGIN_FILE = __FILE__;
     const META_KEY = '_prurl';
     const META_TARGET_BLANK = '_prurl_blank';
