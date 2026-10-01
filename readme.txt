@@ -3,7 +3,7 @@ Contributors: Milmor
 Donate link: https://www.paypal.me/milesimarco
 Tags: redirect, redirection, seo, url, external link
 Requires at least: 5.0
-Tested up to: 7.1
+Tested up to: 7.2
 Requires PHP: 7.4
 Version: 2.3
 Stable tag: 2.3
@@ -65,7 +65,7 @@ By default, redirection is 301 (Moved Permanently), which is best for SEO. You c
 * [Fix] A post redirecting to itself, or two posts redirecting to each other, no longer causes a fatal error.
 * [Fix] `%home%` and `%site%` placeholders are no longer altered when the post is saved again.
 * [Fix] Only valid HTTP status codes (301, 302, 307, 308) are accepted.
-* WP 7.1 compatibility check. Requires WordPress 5.0 and PHP 7.4.
+* WP 7.2 compatibility check. Requires WordPress 5.0 and PHP 7.4.
 
 = 2.2 - 2026-02-02 =
 * [New] Support for Internal Content Redirection (search posts/pages).
