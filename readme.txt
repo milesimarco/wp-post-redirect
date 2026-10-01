@@ -1,10 +1,10 @@
 ﻿=== WP Post Redirect ===
 Contributors: Milmor
 Donate link: https://www.paypal.me/milesimarco
-Tags: seo, redirect, redirection, url, change, external link
-Requires at least: 3.8
-Tested up to: 6.9
-Requires PHP: 5.6
+Tags: redirect, redirection, seo, url, external link
+Requires at least: 5.0
+Tested up to: 7.1
+Requires PHP: 7.4
 Version: 2.2
 Stable tag: 2.2
 License: GPLv2 or later

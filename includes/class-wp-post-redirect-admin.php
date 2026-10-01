@@ -36,7 +36,10 @@ class WP_Post_Redirect_Admin {
 
     public function ajax_search_posts() {
         check_ajax_referer( 'wppr_metabox_nonce', 'nonce' );
-        $query = isset( $_GET['q'] ) ? sanitize_text_field( $_GET['q'] ) : '';
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( null, 403 );
+        }
+        $query = isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : '';
         
         $posts = get_posts( [
             'post_type' => get_post_types( [ 'public' => true ] ),
@@ -64,7 +67,7 @@ class WP_Post_Redirect_Admin {
 
         register_setting( 'wppr_options_group', WP_Post_Redirect::OPTION_HTTP_STATUS, [
             'type' => 'integer',
-            'sanitize_callback' => 'absint',
+            'sanitize_callback' => [ 'WP_Post_Redirect', 'sanitize_http_status' ],
             'default' => 301,
         ] );
     }
@@ -158,8 +161,9 @@ class WP_Post_Redirect_Admin {
                     <label for="wppr-redirect-url" style="font-weight:600;display:block;margin-bottom:8px;">
                         <?php _e( 'Destination URL', 'wp-post-redirect' ); ?>
                     </label>
-                    <input type="url" id="wppr-redirect-url" name="wppr_external_url" 
-                           value="<?php echo esc_url( $prurl ); ?>" class="widefat" 
+                    <?php // type="text" and esc_attr() keep placeholders like %home% intact (replaced only on redirect) ?>
+                    <input type="text" inputmode="url" id="wppr-redirect-url" name="wppr_external_url"
+                           value="<?php echo esc_attr( $prurl ); ?>" class="widefat"
                            placeholder="https://example.com/" autocomplete="off" 
                            style="padding: 8px; border-radius: 4px;" />
                 </p>
@@ -256,7 +260,11 @@ class WP_Post_Redirect_Admin {
                                 if(res.success && res.data.length > 0){
                                     $resultsBox.empty().show();
                                     res.data.forEach(function(item){
-                                        $resultsBox.append('<div class="wppr-search-item" data-id="'+item.id+'" data-title="'+item.title+'" style="padding:8px;cursor:pointer;border-bottom:1px solid #eee;">'+item.title+'</div>');
+                                        $('<div class="wppr-search-item" style="padding:8px;cursor:pointer;border-bottom:1px solid #eee;"></div>')
+                                            .attr('data-id', item.id)
+                                            .attr('data-title', item.title)
+                                            .text(item.title)
+                                            .appendTo($resultsBox);
                                     });
                                 }
                             }
@@ -316,13 +324,14 @@ class WP_Post_Redirect_Admin {
         
         // Unify saving logic into META_KEY
         $type = isset( $_POST['wppr_redirect_type'] ) ? $_POST['wppr_redirect_type'] : 'external';
-        $external_url = isset( $_POST['wppr_external_url'] ) ? trim( $_POST['wppr_external_url'] ) : '';
+        $external_url = isset( $_POST['wppr_external_url'] ) ? trim( wp_unslash( $_POST['wppr_external_url'] ) ) : '';
         $internal_id = isset( $_POST['wppr_internal_id'] ) ? absint( $_POST['wppr_internal_id'] ) : 0;
         
         // Determine final value based on selected type
         $final_value = '';
         if ( $type === 'internal' ) {
-            $final_value = $internal_id ? $internal_id : '';
+            // A post cannot redirect to itself
+            $final_value = ( $internal_id && $internal_id !== (int) $post_id ) ? $internal_id : '';
         } else {
             $final_value = $external_url;
         }
@@ -337,8 +346,8 @@ class WP_Post_Redirect_Admin {
             $nofollow = isset( $_POST[ WP_Post_Redirect::META_REL_NOFOLLOW ] ) ? '1' : '0';
             update_post_meta( $post_id, WP_Post_Redirect::META_REL_NOFOLLOW, $nofollow );
 
-            $status = isset( $_POST[ WP_Post_Redirect::META_HTTP_STATUS ] ) && $_POST[ WP_Post_Redirect::META_HTTP_STATUS ] !== '' ? absint( $_POST[ WP_Post_Redirect::META_HTTP_STATUS ] ) : '';
-            if ( $status ) {
+            $status = isset( $_POST[ WP_Post_Redirect::META_HTTP_STATUS ] ) ? absint( $_POST[ WP_Post_Redirect::META_HTTP_STATUS ] ) : 0;
+            if ( in_array( $status, WP_Post_Redirect::ALLOWED_HTTP_STATUSES, true ) ) {
                 update_post_meta( $post_id, WP_Post_Redirect::META_HTTP_STATUS, $status );
             } else {
                 delete_post_meta( $post_id, WP_Post_Redirect::META_HTTP_STATUS );
@@ -562,7 +571,7 @@ class WP_Post_Redirect_Admin {
                 
                 $raw_value = get_post_meta( $post_id, WP_Post_Redirect::META_KEY, true );
                 $internal_id = is_numeric( $raw_value ) ? $raw_value : '';
-                $internal_title = $internal_id ? get_the_title( $internal_id ) : '-';
+                $internal_title = $internal_id ? $this->csv_safe( get_the_title( $internal_id ) ) : '-';
                 
                 $blank = get_post_meta( $post_id, WP_Post_Redirect::META_TARGET_BLANK, true ) === '1' ? 'Yes' : 'No';
                 $nofollow = get_post_meta( $post_id, WP_Post_Redirect::META_REL_NOFOLLOW, true ) === '1' ? 'Yes' : 'No';
@@ -571,10 +580,10 @@ class WP_Post_Redirect_Admin {
                 
                 fputcsv($output, [
                     $post_id,
-                    $post_type_label,
-                    $row->post_title,
+                    $this->csv_safe( $post_type_label ),
+                    $this->csv_safe( $row->post_title ),
                     $published_date,
-                    $redirect_url,
+                    $this->csv_safe( $redirect_url ),
                     $internal_title,
                     $blank,
                     $nofollow,
@@ -584,5 +593,16 @@ class WP_Post_Redirect_Admin {
             fclose($output);
             exit;
         }
+    }
+
+    /**
+     * Prevents spreadsheet formula injection by prefixing risky values with a quote.
+     */
+    private function csv_safe( $value ) {
+        $value = (string) $value;
+        if ( $value !== '' && in_array( $value[0], [ '=', '+', '-', '@', "\t", "\r" ], true ) ) {
+            return "'" . $value;
+        }
+        return $value;
     }
 }
