@@ -22,6 +22,18 @@
             }
         });
 
+        // Warn about URLs the server will reject (mirrors normalize_external_url() in PHP)
+        const $urlInput = $('#wppr-redirect-url');
+        const $urlWarning = $('#wppr-url-warning');
+        function checkUrl(){
+            const url = $.trim($urlInput.val());
+            const scheme = url.match(/^([a-z][a-z0-9+.-]*):/i);
+            const invalid = (scheme && !/^https?$/i.test(scheme[1])) || /^https?:\/{0,2}$/i.test(url);
+            $urlWarning.prop('hidden', !invalid);
+        }
+        $urlInput.on('input', checkUrl);
+        checkUrl();
+
         let timer;
         $searchInput.on('input', function(){
             clearTimeout(timer);

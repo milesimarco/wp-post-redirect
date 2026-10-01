@@ -205,6 +205,9 @@ class WP_Post_Redirect_Admin {
                            placeholder="https://example.com/" autocomplete="off" 
                            style="padding: 8px; border-radius: 4px;" />
                 </p>
+                <p id="wppr-url-warning" class="wppr-url-warning" hidden>
+                    <?php esc_html_e( 'This URL will not be saved. Use an address starting with http://, https:// or /.', 'wp-post-redirect' ); ?>
+                </p>
             </div>
 
             <div id="wppr-internal-wrapper" style="<?php echo empty($internal_id) ? 'display:none;' : ''; ?>">
@@ -285,7 +288,11 @@ class WP_Post_Redirect_Admin {
             // A post cannot redirect to itself
             $final_value = ( $internal_id && $internal_id !== (int) $post_id ) ? $internal_id : '';
         } else {
-            $final_value = $external_url;
+            $final_value = $this->normalize_external_url( $external_url );
+            // Invalid URL: keep the existing redirect rather than deleting it
+            if ( $external_url !== '' && $final_value === '' ) {
+                return;
+            }
         }
 
         if ( $final_value ) {
@@ -312,6 +319,41 @@ class WP_Post_Redirect_Admin {
         }
         // Always delete legacy internal ID meta if it exists
         delete_post_meta( $post_id, '_prurl_internal_id' );
+    }
+
+    /**
+     * Returns the external URL to store, or '' if it is not a valid redirect target.
+     * Placeholders (e.g. %home%) are kept as typed and only resolved for validation.
+     * Accepted: http(s)://, //host, /relative-path; bare domains get https:// added.
+     */
+    private function normalize_external_url( $url ) {
+        $url = str_replace( ' ', '%20', trim( (string) $url ) );
+        $url = preg_replace( '/[\x00-\x1F\x7F]/', '', $url );
+        if ( $url === '' ) {
+            return '';
+        }
+
+        $resolved = $this->parent->replace_placeholders( $url );
+
+        // Bare domain such as "example.com/page": assume https
+        if ( $resolved === $url && ! preg_match( '#^([a-z][a-z0-9+.-]*:|/)#i', $url ) ) {
+            $url = 'https://' . $url;
+            $resolved = $url;
+        }
+
+        // Relative path on this site
+        if ( strpos( $resolved, '/' ) === 0 && strpos( $resolved, '//' ) !== 0 ) {
+            return $url;
+        }
+
+        $parts = wp_parse_url( $resolved );
+        $scheme = isset( $parts['scheme'] ) ? strtolower( $parts['scheme'] ) : '';
+        // No scheme is only fine for protocol-relative URLs (//host); "host:port/path" is not
+        $scheme_ok = in_array( $scheme, [ 'http', 'https' ], true ) || ( $scheme === '' && strpos( $resolved, '//' ) === 0 );
+        if ( empty( $parts['host'] ) || ! $scheme_ok ) {
+            return '';
+        }
+        return $url;
     }
 
     public function show_redirect_in_permalink( $return, $id, $new_title, $new_slug ) {

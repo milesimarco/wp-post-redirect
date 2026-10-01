@@ -10,6 +10,7 @@
 .wppr-search-item { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
 .wppr-search-item:hover { background: #f0f0f0; }
 .edit-post-meta-boxes-area #wpr_redirect_url .inside { padding-bottom: 10px; }
+.wppr-url-warning { color: #b32d2e; margin-top: 0; }
 .wppr-metabox-content input[type="url"]:focus, .wppr-metabox-content input[type="text"]:focus {
     border-color: #2271b1;
     box-shadow: 0 0 0 1px #2271b1;

@@ -14,6 +14,7 @@ Set the destination in a metabox on the edit screen and visitors are redirected 
 ## Features
 
 - Redirect to an **external URL** or to **internal content** (search posts and pages by title)
+- Links to redirected content (menus, archives, feeds) point straight to the destination
 - HTTP status **301**, **307** or **308**, set globally or per post
 - "Open in new tab" and `rel="nofollow"` options for menu links
 - Enable the redirect metabox for any public post type
@@ -38,7 +39,7 @@ After activation, choose the post types to enable in **Settings → WP Post Redi
 | Option | Description |
 | --- | --- |
 | Redirect Type | **External URL** or **Internal Content** |
-| Destination URL | Address to redirect to (external redirects) |
+| Destination URL | Address to redirect to (external redirects): `https://…`, `http://…` or a relative path `/…` |
 | Search Internal Content | Post or page to redirect to (internal redirects) |
 | HTTP Status | Default (from settings), 301, 307 or 308 |
 | Open in new tab | Adds `target="_blank"` to menu links pointing to the post |

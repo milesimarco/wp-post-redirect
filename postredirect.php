@@ -2,7 +2,7 @@
 /*
 Plugin Name: WP Post Redirect
 Description: Redirect your posts to an external link by adding the url into a new metabox. Simple and efficient!
-Version: 2.2.1
+Version: 2.3
 Requires at least: 5.0
 Requires PHP: 7.4
 Text Domain: wp-post-redirect
@@ -18,7 +18,7 @@ if ( ! class_exists( 'WP_Post_Redirect' ) ) :
 
 class WP_Post_Redirect {
 
-    const VERSION = '2.2.1'; // Keep in sync with the plugin header (used to version admin assets)
+    const VERSION = '2.3'; // Keep in sync with the plugin header (used to version admin assets)
     const PLUGIN_FILE = __FILE__;
     const META_KEY = '_prurl';
     const META_TARGET_BLANK = '_prurl_blank';
@@ -40,6 +40,8 @@ class WP_Post_Redirect {
         // Core Redirection
         add_action( 'template_redirect', [ $this, 'maybe_redirect' ], 1 );
         add_filter( 'post_link', [ $this, 'filter_post_link' ], 10, 2 );
+        add_filter( 'page_link', [ $this, 'filter_post_link' ], 10, 2 );
+        add_filter( 'post_type_link', [ $this, 'filter_post_link' ], 10, 2 );
 
         // Link attributes for Menus
         add_filter( 'nav_menu_link_attributes', [ $this, 'filter_nav_menu_link_attributes' ], 10, 2 );
@@ -108,8 +110,6 @@ class WP_Post_Redirect {
     }
 
     public function get_redirect_url( $id ) {
-        static $placeholders;
-        
         $id = absint( $id );
         $redirect = get_post_meta( $id, self::META_KEY, true );
         if ( ! $redirect ) {
@@ -131,13 +131,22 @@ class WP_Post_Redirect {
         }
 
         // Otherwise handle as External URL with placeholders
+        return $this->replace_placeholders( $redirect );
+    }
+
+    /**
+     * Replaces placeholders like %home% with their value. Placeholders stay stored
+     * as typed and are resolved only here, when the redirect is used.
+     */
+    public function replace_placeholders( $url ) {
+        static $placeholders;
         if ( ! isset( $placeholders ) ) {
             $placeholders = apply_filters( 'redirect_placeholders', [
                 '%home%' => get_home_url(),
                 '%site%' => get_site_url(),
             ] );
         }
-        return str_replace( array_keys( $placeholders ), array_values( $placeholders ), $redirect );
+        return str_replace( array_keys( $placeholders ), array_values( $placeholders ), $url );
     }
 
     public function filter_nav_menu_link_attributes( $atts, $item ) {
