@@ -69,7 +69,7 @@ class WP_Post_Redirect {
                 if ( $link ) {
                     $post_status = get_post_meta( $id, self::META_HTTP_STATUS, true );
                     $status = $post_status ? $post_status : get_option( self::OPTION_HTTP_STATUS, 301 );
-                    wp_redirect( $link, self::sanitize_http_status( $status ) );
+                    wp_redirect( $link, self::sanitize_http_status( $status ), 'WP Post Redirect' );
                     exit;
                 }
             }
