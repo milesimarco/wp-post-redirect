@@ -2,7 +2,7 @@
 /*
 Plugin Name: WP Post Redirect
 Description: Redirect your posts to an external link by adding the url into a new metabox. Simple and efficient!
-Version: 2.2
+Version: 2.2.1
 Requires at least: 5.0
 Requires PHP: 7.4
 Text Domain: wp-post-redirect

@@ -5,8 +5,8 @@ Tags: redirect, redirection, seo, url, external link
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Version: 2.2
-Stable tag: 2.2
+Version: 2.2.1
+Stable tag: 2.2.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,15 @@ By default, redirection is 301 (Moved Permanently), which is best for SEO. You c
 3. Manage and monitor all your links in one place.
 
 == Changelog ==
+
+= 2.2.1 - 2026-10-01 =
+* [Security] Fixed a stored XSS in the internal content search results.
+* [Security] Internal content search now requires the `edit_posts` capability.
+* [Security] CSV export values are escaped against spreadsheet formula injection.
+* [Fix] A post redirecting to itself, or two posts redirecting to each other, no longer causes a fatal error.
+* [Fix] `%home%` and `%site%` placeholders are no longer altered when the post is saved again.
+* [Fix] Only valid HTTP status codes (301, 302, 307, 308) are accepted.
+* WP 7.1 compatibility check. Requires WordPress 5.0 and PHP 7.4.
 
 = 2.2 - 2026-02-02 =
 * [New] Support for Internal Content Redirection (search posts/pages).
@@ -102,6 +111,9 @@ By default, redirection is 301 (Moved Permanently), which is best for SEO. You c
 * Initial release.
 
 == Upgrade Notice ==
+
+= 2.2.1 =
+Security and stability fix. Update recommended.
 
 = 2.0.0 =
 Major update with custom post type support and improved management features.

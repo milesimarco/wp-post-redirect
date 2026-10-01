@@ -51,7 +51,8 @@ class WP_Post_Redirect_Admin {
         foreach ( $posts as $post ) {
             $results[] = [
                 'id' => $post->ID,
-                'title' => $post->post_title . ' (' . $post->post_type . ')',
+                // Decode entities (e.g. &amp;): the JS renders this as text, not HTML
+                'title' => html_entity_decode( $post->post_title, ENT_QUOTES, get_bloginfo( 'charset' ) ) . ' (' . $post->post_type . ')',
             ];
         }
 
